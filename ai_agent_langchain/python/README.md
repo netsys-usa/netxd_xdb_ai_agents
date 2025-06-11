@@ -2,8 +2,7 @@
 ### Please contact anp@netxd.com
 
 ### For complete API details
-API [website]
-[website]: https://documenter.getpostman.com/view/34398137/2sB2qgfypF
+[API]: https://documenter.getpostman.com/view/34398137/2sB2qgfypF
 
 ### From Source
 ```bash
