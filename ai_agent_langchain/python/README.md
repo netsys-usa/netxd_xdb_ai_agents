@@ -1,3 +1,6 @@
+### For registraion to get API key,
+### Please contact anp@netxd.com
+
 ### From Source
 ```bash
 git clone https://github.com/netsys-usa/netxd_xdb_ai_agents.git
