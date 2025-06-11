@@ -7,7 +7,7 @@ https://documenter.getpostman.com/view/34398137/2sB2qgfypF
 ### From Source
 ```bash
 git clone https://github.com/netsys-usa/netxd_xdb_ai_agents.git
-cd xdb-ai-agent
+cd ai_agent_langchain/python
 pip install -e .
 ```
 
