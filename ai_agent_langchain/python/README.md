@@ -56,7 +56,7 @@ agent = create_xdb_agent_from_config("config.json", openai_api_key="your-key")
 response = agent.chat("What memories do I have about cooking?")
 ```
 
-## 🛠️ API Reference
+## API Reference
 
 ### Core Classes
 
@@ -205,7 +205,7 @@ agents = manager.list_agents()  # ["personal", "work"]
 manager.remove_agent("work")
 ```
 
-## 💬 Conversation Examples
+## Conversation Examples
 
 ### Memory Management
 
@@ -380,7 +380,7 @@ def main():
         except Exception as e:
             print(f"Error: {e}\n")
     
-    print("Goodbye! 👋")
+    print("Goodbye!")
 
 if __name__ == "__main__":
     main()
@@ -740,5 +740,3 @@ iface = gr.ChatInterface(
 if __name__ == "__main__":
     iface.launch()
 ```
-
-
