@@ -87,9 +87,7 @@ class XDBAIAgent:
                 - Explain what you're doing when performing operations
                 - Summarize the memory in natural language
                 - Provide suggestions for better memory organization
-
-                Current time: {current_time}
-                XDB Base URL: {base_url}"""),
+                """),
             MessagesPlaceholder(variable_name="chat_history"),
             ("user", "{input}"),
             MessagesPlaceholder(variable_name="agent_scratchpad")
@@ -114,9 +112,7 @@ class XDBAIAgent:
         """Main interface to chat with the XDB AI agent"""
         try:
             response = self.agent.invoke({
-                "input": message,
-                "current_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "base_url": self.config.base_url
+                "input": message
             })
             return response["output"]
         except Exception as e:

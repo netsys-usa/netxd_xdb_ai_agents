@@ -1,4 +1,4 @@
-### For registration to get API key
+### For registration to get an API key
 ### Please contact anp@netxd.com
 
 ### For complete API details
