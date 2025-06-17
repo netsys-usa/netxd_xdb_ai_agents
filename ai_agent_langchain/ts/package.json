@@ -1,0 +1,44 @@
+{
+    "name": "xdb-ai-agent-ts",
+    "version": "2.0.0",
+    "description": "Enhanced XDB AI Agent with intelligent user input handling",
+    "main": "dist/index.js",
+    "scripts": {
+        "setup": "node setup-env.js",
+        "dev": "ts-node index.ts",
+        "dev:interactive": "ts-node index.ts interactive",
+        "dev:demo": "ts-node index.ts demo",
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "start:interactive": "node dist/index.js interactive",
+        "start:demo": "node dist/index.js demo",
+        "test:env": "ts-node -e \"require('dotenv').config(); console.log('Environment check:', {XDB_API_KEY: !!process.env.XDB_API_KEY, OPENAI_API_KEY: !!process.env.OPENAI_API_KEY});\""
+    },
+    "keywords": [
+        "xdb",
+        "ai",
+        "langchain",
+        "memory",
+        "agent",
+        "typescript",
+        "interactive",
+        "user-input"
+    ],
+    "author": "Your Name",
+    "license": "MIT",
+    "dependencies": {
+        "@langchain/core": "^0.1.0",
+        "@langchain/openai": "^0.0.20",
+        "axios": "^1.6.0",
+        "dotenv": "^16.3.0",
+        "express": "^4.18.0",
+        "langchain": "^0.3.28",
+        "zod": "^3.22.0"
+    },
+    "devDependencies": {
+        "@types/express": "^4.17.0",
+        "@types/node": "^20.10.0",
+        "ts-node": "^10.9.0",
+        "typescript": "^5.3.0"
+    }
+}
