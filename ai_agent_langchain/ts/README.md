@@ -15,13 +15,19 @@ export OPENAI_API_KEY="your-openai-api-key"
 
 
 ### Run check-env.js to check the dependencies
+```bash
 node check-env.js
+```
 
 
 ### Option 1: Direct Commands
+```bash
 npm run dev:interactive
 npm run dev:demo
 npm run check
+```
 
 ### Option 2: Direct Commands
+```bash
 npx ts-node index.js interactive
+```
