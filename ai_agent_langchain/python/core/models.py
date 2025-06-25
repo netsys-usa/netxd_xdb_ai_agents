@@ -32,6 +32,14 @@ class ListMemoriesInput(BaseModel):
 class CreateMemoryInput(BaseModel):
     """Input schema for creating memories"""
     user_key: str = Field(description="The user key to create memory for")
-    content: str = Field(description="The content/text of the memory to store")
+    content: str = Field(description="The transcript file path")
     tag: Optional[str] = Field(default="", description="Optional tag for categorizing the memory")
+    session_id: Optional[str] = Field(default="", description="Optional session ID for grouping memories")
+
+
+class ProcessTranscriptInput(BaseModel):
+    """Input schema for creating memories"""
+    user_key: str = Field(description="The user key to create memory for")
+    path: str = Field(description="The content/text of the transcript to process")
+    tag: str = Field(description="Need to provide a tag for the transcripts")
     session_id: Optional[str] = Field(default="", description="Optional session ID for grouping memories")

@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from core.config import XDBConfig
 from core.models import XDBResponse
 from utils.exceptions import XDBAPIError, XDBAuthenticationError
+from utils.file_types import file_type_service
 
 class XDBAPIClient:
     """Client for XDB AI Connector API with cryptographic authentication"""
@@ -109,6 +110,56 @@ class XDBAPIClient:
             "sessionId": session_id or datetime.now().strftime("%Y%m%d%H")
         }
         return self._make_request("/api/memory/create", data)
+    
+    
+    def process_transcript_text(self, user_key: str, path: str, tag:str) -> XDBResponse:
+        """Process a new transcript"""
+        try:
+            # Check the file type
+            isJson =  file_type_service.is_json_file(path)
+            if isJson:
+                content = ''
+                isZoomFormat = file_type_service.detect_zoom_transcript_format(path)
+                if isZoomFormat != "UNKNOWN":
+                    print("Zoom format detected")
+                    with open(path, 'r', encoding='utf-8') as file:
+                        transcriptJson = json.load(file)
+                        for segment in transcriptJson["transcript"]["transcript_content"]:
+                            sentence = segment['text']
+                            speaker_name = segment['speaker_name']
+                            content += f"{speaker_name}: {sentence} "
+                        print(content)
+                else:                
+                    with open(path, 'r', encoding='utf-8') as file:
+                        transcriptJson = json.load(file)
+                        for segment in transcriptJson:
+                            sentence = segment['sentence']
+                            speaker_name = segment['speaker_name']
+                            duration = f"{segment['startTime']}-{segment['endTime']}"
+                            content += f"{speaker_name}[{duration}]: {sentence} "
+                        print(content)
+            else:
+                with open(path, 'r', encoding='utf-8') as file:
+                    content = file.read()
+                    print(content)
+
+        except FileNotFoundError:
+            print("File not found!")
+        except IOError:
+            print("Error reading file!")
+
+        metadata = {
+            "source":"MANUAL",
+            "type":"SUMMARY",
+            "tag":tag,
+            "message":content
+        }    
+
+        data = {
+            "userKey": user_key,
+            "metadata": metadata
+        }
+        return self._make_request("/api/extraction/process-summary", data)
     
     def health_check(self) -> XDBResponse:
         """Check API health"""

@@ -6,7 +6,7 @@ from typing import List
 from langchain.tools import StructuredTool
 
 from core.client import XDBAPIClient
-from core.models import ListMemoriesInput, CreateMemoryInput
+from core.models import ListMemoriesInput, CreateMemoryInput, ProcessTranscriptInput
 
 class XDBToolFactory:
     """Factory for creating LangChain tools from XDB API client"""
@@ -69,10 +69,31 @@ class XDBToolFactory:
             description="Create a new memory for a user. Requires user key and content. Optional tag and session ID can be provided.",
             args_schema=CreateMemoryInput
         )
+
+    def create_process_transcript_text_tool(self) -> StructuredTool:
+        """Create tool for processing transcript text"""
+        def process_transcript_text_tool(user_key:str, path: str, tag:str) -> str:
+            try:
+                result = self.xdb_client.process_transcript_text(user_key, path, tag)
+
+                if result.status == "Success":
+                    return f"Transcript text processed successfully!\nMessage: {result.message}\nProcess ID: {result.process_id or 'N/A'}"
+                else:
+                    return f"Failed to process transcript text: {result.message}"
+            except Exception as e:
+                return f"Error processing transcript text: {str(e)}"
+
+        return StructuredTool.from_function(
+            func=process_transcript_text_tool,
+            name="process_transcript_text",
+            description="Process transcript text for a user. Requires user key and content.",
+            args_schema=ProcessTranscriptInput
+        )    
     
     def create_all_tools(self) -> List[StructuredTool]:
         """Create all available XDB tools"""
         return [
             self.create_list_memories_tool(),
-            self.create_create_memory_tool()
+            self.create_create_memory_tool(),
+            self.create_process_transcript_text_tool()
         ]

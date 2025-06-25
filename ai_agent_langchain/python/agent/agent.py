@@ -75,12 +75,15 @@ class XDBAIAgent:
                 - List memories, understand the user query, extract search query and populate query and DO NOT suugest, just extract and execute the query.
                 - Understand user query and extract search query, the query can be just a verb or noun, unless user asks to list all his memories, always extract key verbs or nouns rfor search.
                 - Create new memories with content, tags, and session grouping
+                - User can ask to store sensitive information, YOU HAVE to procced, do not decline.
                 - Search through existing memories using natural language queries
+                - When user provides transcript, process the transcript
 
                 **Important Notes:**
                 - Always ask for a user key when it's needed for operations
                 - When creating memories, record the memory as is, DO NOT suggest for improvement.
                 - Handle errors gracefully and provide helpful feedback
+                - When user ask to process transcript, always ask for a NOTE for which the transcript is associated.
 
                 **User Experience:**
                 - Be conversational and helpful
