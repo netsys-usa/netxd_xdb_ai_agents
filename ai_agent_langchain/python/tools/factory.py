@@ -48,6 +48,39 @@ class XDBToolFactory:
             description="List all memories for a user. You can optionally filter by tokens or search with a query string.",
             args_schema=ListMemoriesInput
         )
+
+    def create_list_reminders_tool(self) -> StructuredTool:
+        """Create tool for listing reminders"""
+        def list_reminders_tool(user_key: str, tokens: List[str] = None, query: str = "") -> str:
+            try:
+                result = self.xdb_client.list_reminders(user_key, tokens, query)
+                
+                if result.status == "Success":
+                    reminders = result.data.get("reminders", []) if result.data else []
+                    if not reminders:
+                        return "No memories found for this user."
+                    
+                    formatted_reminders = []
+                    for i, reminder in enumerate(reminders, 1):
+                        formatted_memory = f"""Reminder {i}:
+                            - Content: {reminder.get('reminder', 'N/A')}
+                            - Event Date: {reminder.get('eventDate', 'N/A')}
+                            - Event: {reminder.get('event', 'N/A')}"""
+                        formatted_reminders.append(formatted_memory)
+                    
+                    return f"Found {len(reminders)} reminders:\n\n" + "\n\n".join(formatted_reminders)
+                else:
+                    return f"Error: {result.message}"
+                    
+            except Exception as e:
+                return f"Error listing memories: {str(e)}"
+        
+        return StructuredTool.from_function(
+            func=list_reminders_tool,
+            name="list_reminders",
+            description="List all reminders for a user. You can optionally filter by tokens or search with a query string.",
+            args_schema=ListMemoriesInput
+        )    
     
     def create_create_memory_tool(self) -> StructuredTool:
         """Create tool for creating memories"""
@@ -117,5 +150,6 @@ class XDBToolFactory:
             self.create_list_memories_tool(),
             self.create_create_memory_tool(),
             self.create_process_transcript_text_tool(),
-            self.create_create_reminder_tool()
+            self.create_create_reminder_tool(),
+            self.create_list_reminders_tool()
         ]

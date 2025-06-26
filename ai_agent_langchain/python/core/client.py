@@ -101,6 +101,16 @@ class XDBAPIClient:
         }
         return self._make_request("/api/memory/list", data)
     
+    def list_reminders(self, user_key: str, tokens: List[str] = None, query: str = "") -> XDBResponse:
+        """List reminders for a user"""
+        data = {
+            "userKey": user_key,
+            "tokens": tokens or [],
+            "query": query
+        }
+        return self._make_request("/api/reminder/list", data)
+    
+    
     def create_memory(self, user_key: str, content: str, tag: str = "", session_id: str = "") -> XDBResponse:
         """Create a new memory"""
         data = {
