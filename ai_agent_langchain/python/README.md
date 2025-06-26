@@ -30,12 +30,24 @@ from xdb_ai_agent import create_xdb_agent_from_env
 # Create agent from environment variables
 agent = create_xdb_agent_from_env()
 
-# Start chatting
+# Start chatting - Memory Management
 response = agent.chat("List all memories for user 'john_doe'")
 print(response)
 
 # Create a memory
 response = agent.chat("Create a memory about learning Python with tag 'education' for user 'alice'")
+print(response)
+
+# Reminder Management
+response = agent.chat("Remind me to call mom at 3pm tomorrow for user 'bob'")
+print(response)
+
+# List reminders
+response = agent.chat("List all reminders for user 'bob'")
+print(response)
+
+# Process transcript
+response = agent.chat("Process transcript file /path/to/meeting.json with tag 'meeting' for user 'alice'")
 print(response)
 ```
 
@@ -62,7 +74,7 @@ response = agent.chat("What memories do I have about cooking?")
 
 #### `XDBAIAgent`
 
-The main agent class for interacting with XDB memory management.
+The main agent class for interacting with XDB memory management and reminder system.
 
 ```python
 from xdb_ai_agent import XDBAIAgent, XDBConfig
@@ -76,7 +88,7 @@ config = XDBConfig(
 agent = XDBAIAgent(
     config=config,
     openai_api_key="your-openai-key",
-    model="gpt-4",  # Default: "gpt-3.5-turbo"
+    model="gpt-4o",  # Default: "gpt-4o"
     temperature=0.1,  # Default: 0.1
     streaming=True,  # Default: True
     verbose=True  # Default: True
@@ -107,7 +119,7 @@ from xdb_ai_agent import create_xdb_agent_from_env
 
 agent = create_xdb_agent_from_env(
     openai_api_key="custom-key",  # Override env var
-    model="gpt-4",
+    model="gpt-4o",
     temperature=0.2,
     streaming=False,
     verbose=False
@@ -122,7 +134,7 @@ from xdb_ai_agent import create_xdb_agent_from_config
 agent = create_xdb_agent_from_config(
     config_path="./config.json",
     openai_api_key="your-key",
-    model="gpt-4"
+    model="gpt-4o"
 )
 ```
 
@@ -171,11 +183,16 @@ from xdb_ai_agent import XDBAPIClient, XDBConfig
 config = XDBConfig.from_env()
 client = XDBAPIClient(config)
 
-# List memories
+# Memory operations
 response = client.list_memories("user123", tokens=["tag1"], query="cooking")
-
-# Create memory
 response = client.create_memory("user123", "Learned to make pasta", tag="cooking")
+
+# Reminder operations  
+response = client.list_reminders("user123", tokens=["work"], query="meeting")
+response = client.create_reminder("user123", "Call client at 2pm", tag="work")
+
+# Transcript processing
+response = client.process_transcript_text("user123", "/path/to/transcript.json", "meeting")
 
 # Health check
 response = client.health_check()
@@ -230,16 +247,49 @@ Tag it as 'education' and session 'ml_course_2024'
 response = agent.chat("Show memories with tokens 'recipe', 'italian' for user 'chef_alice'")
 ```
 
+### Reminder Management
+
+```python
+agent = create_xdb_agent_from_env()
+
+# Create reminders with time/date context
+response = agent.chat("Remind user 'alice' to submit report by Friday")
+response = agent.chat("Set a reminder for user 'bob' to call dentist tomorrow at 2pm")
+
+# List reminders
+response = agent.chat("List all reminders for user 'alice'")
+response = agent.chat("Show work-related reminders for user 'bob'")
+
+# Search reminders by query
+response = agent.chat("Find reminders about meetings for user 'manager_sarah'")
+```
+
+### Transcript Processing
+
+```python
+agent = create_xdb_agent_from_env()
+
+# Process different transcript formats
+response = agent.chat("Process transcript file /path/to/zoom_meeting.json with tag 'team-meeting' for user 'alice'")
+response = agent.chat("Process transcript /path/to/interview.txt with tag 'hiring' for user 'hr_manager'")
+
+# The agent automatically detects:
+# - Zoom transcript format (JSON with speaker_name, start_time, end_time)
+# - Custom JSON format with sentence and speaker_name
+# - Plain text transcripts
+```
+
 ### Advanced Usage
 
 ```python
-# Multi-turn conversation
+# Multi-turn conversation with different tools
 agent = create_xdb_agent_from_env()
 
-agent.chat("I want to work with user alice's memories")
-agent.chat("What does she remember about her vacation?")
-agent.chat("Add a new memory about her visiting the Louvre museum with tag 'travel'")
-agent.chat("Now show all her travel memories")
+agent.chat("I want to work with user alice's data")
+agent.chat("First, show me her recent memories about meetings")
+agent.chat("Now set a reminder for her to follow up on the budget discussion")
+agent.chat("Also process this transcript file /path/to/meeting.json with tag 'budget-meeting'")
+agent.chat("Finally, show all her work-related reminders")
 ```
 
 ## Advanced Configuration
@@ -354,14 +404,15 @@ agent = create_xdb_agent_from_env()
 
 ```python
 #!/usr/bin/env python3
-"""Interactive memory management bot"""
+"""Interactive memory and reminder management bot"""
 
 from xdb_ai_agent import create_xdb_agent_from_env
 import readline  # For better input handling
 
 def main():
     agent = create_xdb_agent_from_env(verbose=True)
-    print("🤖 XDB Memory Bot started! Type 'exit' to quit.\n")
+    print("🤖 XDB Memory & Reminder Bot started! Type 'exit' to quit.\n")
+    print("Features: Memory storage, Reminder creation, Transcript processing\n")
     
     while True:
         try:
@@ -386,7 +437,7 @@ if __name__ == "__main__":
     main()
 ```
 
-### 2. Flask Web API
+### 2. Flask Web API with All Features
 
 ```python
 from flask import Flask, request, jsonify
@@ -411,6 +462,31 @@ def chat():
     except Exception as e:
         return jsonify({"error": str(e), "success": False}), 500
 
+@app.route("/upload-transcript", methods=["POST"])
+def upload_transcript():
+    """Handle transcript file uploads"""
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    
+    file = request.files['file']
+    user_key = request.form.get('user_key')
+    tag = request.form.get('tag', 'transcript')
+    
+    if not user_key:
+        return jsonify({"error": "user_key required"}), 400
+    
+    # Save file temporarily
+    file_path = f"/tmp/{file.filename}"
+    file.save(file_path)
+    
+    try:
+        agent = manager.get_agent("default")
+        message = f"Process transcript file {file_path} with tag '{tag}' for user '{user_key}'"
+        response = agent.chat(message)
+        return jsonify({"response": response, "success": True})
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
 @app.route("/agents", methods=["GET"])
 def list_agents():
     return jsonify({"agents": manager.list_agents()})
@@ -427,15 +503,17 @@ if __name__ == "__main__":
     app.run(debug=True, port=5001)
 ```
 
-### 3. Async FastAPI Server
+### 3. Async FastAPI Server with Enhanced Features
 
 ```python
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from xdb_ai_agent import create_xdb_agent_from_env
 import asyncio
+import tempfile
+import os
 
-app = FastAPI(title="XDB Memory API")
+app = FastAPI(title="XDB Memory & Reminder API")
 
 # Global agent
 agent = None
@@ -448,6 +526,10 @@ class ChatResponse(BaseModel):
     response: str
     success: bool
 
+class TranscriptRequest(BaseModel):
+    user_key: str
+    tag: str = "transcript"
+
 @app.on_event("startup")
 async def startup_event():
     global agent
@@ -456,7 +538,6 @@ async def startup_event():
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
     try:
-        # Run in thread pool since agent.chat is synchronous
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None, 
@@ -467,12 +548,73 @@ async def chat_endpoint(request: ChatRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/upload-transcript")
+async def upload_transcript(
+    file: UploadFile = File(...),
+    user_key: str = Form(...),
+    tag: str = Form("transcript")
+):
+    try:
+        # Save uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp_file:
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_file_path = tmp_file.name
+        
+        # Process with agent
+        loop = asyncio.get_event_loop()
+        message = f"Process transcript file {tmp_file_path} with tag '{tag}' for user '{user_key}'"
+        response = await loop.run_in_executor(None, agent.chat, message)
+        
+        # Clean up temporary file
+        os.unlink(tmp_file_path)
+        
+        return {"response": response, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/reset")
 async def reset_memory():
     agent.reset_memory()
     return {"message": "Memory reset successfully"}
 
 # Run with: uvicorn main:app --reload
+```
+
+## Supported Transcript Formats
+
+The XDB AI Agent supports multiple transcript formats:
+
+### 1. Zoom Transcript Format (JSON)
+```json
+{
+  "transcript": {
+    "transcript_content": [
+      {
+        "speaker_name": "John Doe",
+        "text": "Welcome to today's meeting."
+      }
+    ]
+  }
+}
+```
+
+### 2. Custom JSON Format
+```json
+[
+  {
+    "speaker_name": "Alice",
+    "sentence": "Let's discuss the quarterly results.",
+    "startTime": "00:01:30",
+    "endTime": "00:01:35"
+  }
+]
+```
+
+### 3. Plain Text Format
+```
+Speaker 1: Hello everyone, thanks for joining.
+Speaker 2: Happy to be here, let's get started.
 ```
 
 ## Testing
@@ -532,7 +674,15 @@ def mock_client(monkeypatch):
             "message": "Success"
         }
     
+    def mock_list_reminders(*args, **kwargs):
+        return {
+            "status": "Success", 
+            "data": {"reminders": []},
+            "message": "Success"
+        }
+    
     monkeypatch.setattr("xdb_ai_agent.core.client.XDBAPIClient.list_memories", mock_list_memories)
+    monkeypatch.setattr("xdb_ai_agent.core.client.XDBAPIClient.list_reminders", mock_list_reminders)
 ```
 
 ## Troubleshooting
@@ -574,6 +724,21 @@ pip install --upgrade langchain langchain-openai
 import openai
 openai.api_key = "your-key"
 # Try a simple completion
+```
+
+#### 5. Transcript Processing Issues
+
+```python
+# Check file format and permissions
+import os
+transcript_path = "/path/to/transcript.json"
+print(f"File exists: {os.path.exists(transcript_path)}")
+print(f"File readable: {os.access(transcript_path, os.R_OK)}")
+
+# Test file format detection
+from xdb_ai_agent.utils.file_types import file_type_service
+print(f"Is JSON: {file_type_service.is_json_file(transcript_path)}")
+print(f"Zoom format: {file_type_service.detect_zoom_transcript_format(transcript_path)}")
 ```
 
 ### Debug Mode
@@ -619,6 +784,9 @@ The library includes a CLI tool for quick interactions:
 # Interactive mode
 xdb-cli --interactive
 
+# Interactive mode with custom tools
+xdb-cli --interactive_custom
+
 # Single command
 xdb-cli --message "List memories for user john_doe"
 
@@ -641,6 +809,30 @@ Memories returned from XDB have this structure:
     "sessionId": "session_2024011510"
 }
 ```
+
+### Reminder Data Structure
+
+Reminders returned from XDB have this structure:
+
+```python
+{
+    "reminder": "Content of the reminder",
+    "eventDate": "2024-01-20T15:00:00Z",
+    "event": "Meeting with client",
+    "tag": "work",
+    "sessionId": "session_2024011510"
+}
+```
+
+### Available Tools Summary
+
+The XDB AI Agent includes these built-in tools:
+
+1. **list_memories** - List and search user memories with optional filtering
+2. **create_memory** - Create new memories with content, tags, and session grouping
+3. **list_reminders** - List and search user reminders with optional filtering  
+4. **create_reminder** - Create new reminders with time/date context
+5. **process_transcript_text** - Process transcript files in multiple formats
 
 ### Custom Tool Development
 
@@ -680,7 +872,23 @@ from xdb_ai_agent import create_xdb_agent_from_env
 def get_agent():
     return create_xdb_agent_from_env(streaming=False)
 
-st.title("XDB Memory Assistant")
+st.title("XDB Memory & Reminder Assistant")
+
+# File upload for transcripts
+uploaded_file = st.file_uploader("Upload Transcript", type=['json', 'txt', 'vtt'])
+if uploaded_file:
+    user_key = st.text_input("User Key")
+    tag = st.text_input("Tag", value="transcript")
+    
+    if st.button("Process Transcript"):
+        # Save and process file
+        with open(f"/tmp/{uploaded_file.name}", "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        
+        agent = get_agent()
+        message = f"Process transcript file /tmp/{uploaded_file.name} with tag '{tag}' for user '{user_key}'"
+        response = agent.chat(message)
+        st.success(response)
 
 # Initialize session state
 if "messages" not in st.session_state:
@@ -692,7 +900,7 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Chat input
-if prompt := st.chat_input("What would you like to know about your memories?"):
+if prompt := st.chat_input("What would you like to know about your memories or reminders?"):
     # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -725,18 +933,46 @@ def chat_with_agent(message, history):
     except Exception as e:
         return f"Error: {str(e)}"
 
+def process_transcript_file(file, user_key, tag):
+    """Process uploaded transcript file"""
+    try:
+        message = f"Process transcript file {file.name} with tag '{tag}' for user '{user_key}'"
+        response = agent.chat(message)
+        return response
+    except Exception as e:
+        return f"Error: {str(e)}"
+
 # Create Gradio interface
-iface = gr.ChatInterface(
-    fn=chat_with_agent,
-    title="XDB Memory Assistant",
-    description="Chat with your XDB memory management assistant",
-    examples=[
-        "List all memories for user alice",
-        "Create a memory about learning Python for user bob",
-        "Find memories about cooking for user chef_mike"
-    ]
-)
+with gr.Blocks() as demo:
+    gr.Markdown("# XDB Memory & Reminder Assistant")
+    
+    with gr.Tab("Chat"):
+        chatbot = gr.ChatInterface(
+            fn=chat_with_agent,
+            title="Chat with XDB Assistant",
+            examples=[
+                "List all memories for user alice",
+                "Create a memory about learning Python for user bob",
+                "Remind user sarah to submit report by Friday",
+                "List all reminders for user john"
+            ]
+        )
+    
+    with gr.Tab("Upload Transcript"):
+        with gr.Row():
+            file_input = gr.File(label="Transcript File")
+            user_key_input = gr.Textbox(label="User Key")
+            tag_input = gr.Textbox(label="Tag", value="transcript")
+        
+        process_btn = gr.Button("Process Transcript")
+        output = gr.Textbox(label="Result")
+        
+        process_btn.click(
+            process_transcript_file,
+            inputs=[file_input, user_key_input, tag_input],
+            outputs=output
+        )
 
 if __name__ == "__main__":
-    iface.launch()
+    demo.launch()
 ```
