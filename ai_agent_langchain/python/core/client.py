@@ -111,6 +111,16 @@ class XDBAPIClient:
         }
         return self._make_request("/api/memory/create", data)
     
+    def create_reminder(self, user_key: str, content: str, tag: str = "", session_id: str = "") -> XDBResponse:
+        """Create a new reminder"""
+        data = {
+            "userKey": user_key,
+            "content": content,
+            "tag": tag,
+            "sessionId": session_id or datetime.now().strftime("%Y%m%d%H")
+        }
+        return self._make_request("/api/reminder/create", data)
+    
     
     def process_transcript_text(self, user_key: str, path: str, tag:str) -> XDBResponse:
         """Process a new transcript"""

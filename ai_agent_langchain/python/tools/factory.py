@@ -6,7 +6,7 @@ from typing import List
 from langchain.tools import StructuredTool
 
 from core.client import XDBAPIClient
-from core.models import ListMemoriesInput, CreateMemoryInput, ProcessTranscriptInput
+from core.models import ListMemoriesInput, CreateMemoryInput, ProcessTranscriptInput, CreateReminderInput
 
 class XDBToolFactory:
     """Factory for creating LangChain tools from XDB API client"""
@@ -69,6 +69,27 @@ class XDBToolFactory:
             description="Create a new memory for a user. Requires user key and content. Optional tag and session ID can be provided.",
             args_schema=CreateMemoryInput
         )
+    
+    def create_create_reminder_tool(self) -> StructuredTool:
+        """Create tool for creating memories"""
+        def create_reminder_tool(user_key: str, content: str, tag: str = "", session_id: str = "") -> str:
+            try:
+                result = self.xdb_client.create_reminder(user_key, content, tag, session_id)
+                
+                if result.status == "Success":
+                    return f"Memory created successfully!\nMessage: {result.message}\nProcess ID: {result.process_id or 'N/A'}"
+                else:
+                    return f"Failed to create memory: {result.message}"
+                    
+            except Exception as e:
+                return f"Error creating memory: {str(e)}"
+        
+        return StructuredTool.from_function(
+            func=create_reminder_tool,
+            name="create_reminder",
+            description="Create a new reminder for a user. Requires user key and content. Optional tag and session ID can be provided.",
+            args_schema=CreateReminderInput
+        )
 
     def create_process_transcript_text_tool(self) -> StructuredTool:
         """Create tool for processing transcript text"""
@@ -95,5 +116,6 @@ class XDBToolFactory:
         return [
             self.create_list_memories_tool(),
             self.create_create_memory_tool(),
-            self.create_process_transcript_text_tool()
+            self.create_process_transcript_text_tool(),
+            self.create_create_reminder_tool()
         ]

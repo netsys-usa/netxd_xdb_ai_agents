@@ -36,6 +36,13 @@ class CreateMemoryInput(BaseModel):
     tag: Optional[str] = Field(default="", description="Optional tag for categorizing the memory")
     session_id: Optional[str] = Field(default="", description="Optional session ID for grouping memories")
 
+class CreateReminderInput(BaseModel):
+    """Input schema for creating memories"""
+    user_key: str = Field(description="The user key to create memory for")
+    content: str = Field(description="The transcript file path")
+    tag: Optional[str] = Field(default="", description="Optional tag for categorizing the memory")
+    session_id: Optional[str] = Field(default="", description="Optional session ID for grouping memories")    
+
 
 class ProcessTranscriptInput(BaseModel):
     """Input schema for creating memories"""
