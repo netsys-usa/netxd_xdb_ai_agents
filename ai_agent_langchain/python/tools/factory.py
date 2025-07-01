@@ -4,9 +4,11 @@ Tool factory for creating LangChain tools from XDB API client
 
 from typing import List
 from langchain.tools import StructuredTool
+from Crypto.PublicKey import RSA
 
 from core.client import XDBAPIClient
 from core.models import ListMemoriesInput, CreateMemoryInput, ProcessTranscriptInput, CreateReminderInput
+from utils.rsa_encryption_service import RSAEncryption
 
 class XDBToolFactory:
     """Factory for creating LangChain tools from XDB API client"""
@@ -25,14 +27,37 @@ class XDBToolFactory:
                     if not memories:
                         return "No memories found for this user."
                     
+                    private_key = """"""
+                    
+                    rsaEncryption = RSAEncryption()
+                    rsaEncryption.private_key = RSA.import_key(private_key)  
+
+                    print("Decrypting memories..., Private Key loaded")  
+
                     formatted_memories = []
                     for i, memory in enumerate(memories, 1):
+                        memoryDecrypted = memory.get('memory', 'N/A')
+                        tokensDecrypted = []
+                        isEncrypted = memory.get('isEncrypted', False)
+                        if isEncrypted:
+                            memoryEnc = bytes.fromhex(memoryDecrypted)
+                            memoryDecrypted = rsaEncryption.rsa_decrypt_oaep(memoryEnc).decode('utf-8')
+
+                            for token in memory.get('tokens', []):
+                                tokenEnc = bytes.fromhex(token)
+                                tokenDecrypted = rsaEncryption.rsa_decrypt_oaep(tokenEnc).decode('utf-8')
+                                tokensDecrypted.append(tokenDecrypted)
+                        else:
+                            memoryDecrypted = memoryDecrypted    
+                            tokensDecrypted = memory.get('tokens', [])
+
                         formatted_memory = f"""Memory {i}:
-                            - Content: {memory.get('memory', 'N/A')}
+                            - Content: {memoryDecrypted}
                             - Date: {memory.get('date', 'N/A')}
                             - Transaction: {memory.get('transactionNumber', 'N/A')}
-                            - Tokens: {', '.join(memory.get('tokens', []))}
-                            - Language: {memory.get('language') or 'Not specified'}"""
+                            - Tokens: {', '.join(tokensDecrypted)}
+                            - Language: {memory.get('language') or 'Not specified'}
+                            - Encrypted: {memory.get('isEncrypted')} """
                         formatted_memories.append(formatted_memory)
                     
                     return f"Found {len(memories)} memories:\n\n" + "\n\n".join(formatted_memories)
