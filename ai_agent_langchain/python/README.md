@@ -68,6 +68,61 @@ agent = create_xdb_agent_from_config("config.json", openai_api_key="your-key")
 response = agent.chat("What memories do I have about cooking?")
 ```
 
+## 🔐 Memory Encryption & Decryption
+
+The XDB AI Agent supports encrypted memories with automatic decryption when viewing. This provides an additional layer of security for sensitive information.
+
+### How Memory Encryption Works
+
+1. **Encrypted Storage**: Memories can be stored in encrypted format on the XDB server
+2. **Automatic Decryption**: When listing memories, the agent automatically detects and decrypts encrypted content
+3. **RSA Encryption**: Uses RSA-OAEP encryption for secure memory storage
+
+### Decryption Configuration
+
+To enable automatic decryption of encrypted memories, you need to configure the RSA private key in the tool factory:
+
+```python
+# In tools/factory.py, update the private_key variable with your RSA private key
+private_key = """-----BEGIN RSA PRIVATE KEY-----
+YOUR_RSA_PRIVATE_KEY_CONTENT_HERE
+-----END RSA PRIVATE KEY-----"""
+```
+
+### Memory Response Format
+
+When listing memories, the response includes encryption status:
+
+```python
+# Example decrypted memory output
+"""Memory 1:
+- Content: [Decrypted content]
+- Date: 2024-01-15T10:30:00Z
+- Transaction: txn_123456
+- Tokens: [decrypted, tags]
+- Language: en
+- Encrypted: True"""
+```
+
+### Security Considerations
+
+- **Private Key Security**: Store your RSA private key securely and never commit it to version control
+- **Key Rotation**: Regularly rotate encryption keys for enhanced security
+- **Access Control**: Ensure only authorized applications have access to the private key
+- **Environment Variables**: Consider storing the private key as an environment variable
+
+### Setting Up RSA Keys for Encryption
+
+```bash
+# Generate RSA key pair (if not already provided by XDB)
+openssl genrsa -out private_key.pem 2048
+openssl rsa -in private_key.pem -pubout -out public_key.pem
+
+# Set proper permissions
+chmod 600 private_key.pem
+chmod 644 public_key.pem
+```
+
 ## API Reference
 
 ### Core Classes
@@ -229,7 +284,7 @@ manager.remove_agent("work")
 ```python
 agent = create_xdb_agent_from_env()
 
-# List all memories
+# List all memories (automatically decrypts encrypted content)
 response = agent.chat("List all memories for user 'john_doe'")
 
 # Search for specific memories
@@ -245,6 +300,26 @@ Tag it as 'education' and session 'ml_course_2024'
 
 # Filter by tokens
 response = agent.chat("Show memories with tokens 'recipe', 'italian' for user 'chef_alice'")
+```
+
+### Working with Encrypted Memories
+
+```python
+agent = create_xdb_agent_from_env()
+
+# List memories - encrypted memories are automatically decrypted for display
+response = agent.chat("List all memories for user 'secure_user'")
+# Output will show decrypted content with encryption status indicator
+
+# Create sensitive memories (encryption handled server-side based on configuration)
+response = agent.chat("""
+Create a memory for user 'secure_user': 
+'Password for banking account: SecurePass123' 
+Tag it as 'credentials'
+""")
+
+# Search through encrypted memories (search works on decrypted content)
+response = agent.chat("Find memories about passwords for user 'secure_user'")
 ```
 
 ### Reminder Management
@@ -293,6 +368,25 @@ agent.chat("Finally, show all her work-related reminders")
 ```
 
 ## Advanced Configuration
+
+### Encryption Configuration
+
+Configure RSA decryption in your application:
+
+```python
+from xdb_ai_agent.tools.factory import XDBToolFactory
+from xdb_ai_agent.utils.rsa_encryption_service import RSAEncryption
+from Crypto.PublicKey import RSA
+
+# Method 1: Update private key in factory.py
+# Edit tools/factory.py and add your RSA private key
+
+# Method 2: Configure RSA service directly (future enhancement)
+rsa_service = RSAEncryption()
+with open('/path/to/private_key.pem', 'r') as f:
+    private_key_content = f.read()
+rsa_service.private_key = RSA.import_key(private_key_content)
+```
 
 ### Custom Tools
 
@@ -370,6 +464,22 @@ openssl ec -in private-key.pem -pubout -out public-key.pem
 chmod 600 private-key.pem
 ```
 
+### RSA Key Setup for Memory Encryption
+
+Generate RSA keys for memory encryption/decryption:
+
+```bash
+# Generate RSA private key for memory encryption
+openssl genrsa -out rsa_private_key.pem 2048
+
+# Extract RSA public key (share with XDB server for encryption)
+openssl rsa -in rsa_private_key.pem -pubout -out rsa_public_key.pem
+
+# Set proper permissions
+chmod 600 rsa_private_key.pem
+chmod 644 rsa_public_key.pem
+```
+
 ### Environment Variables Security
 
 ```python
@@ -400,11 +510,11 @@ agent = create_xdb_agent_from_env()
 
 ## Real-World Examples
 
-### 1. Interactive CLI Bot
+### 1. Interactive CLI Bot with Encryption Support
 
 ```python
 #!/usr/bin/env python3
-"""Interactive memory and reminder management bot"""
+"""Interactive memory and reminder management bot with encryption support"""
 
 from xdb_ai_agent import create_xdb_agent_from_env
 import readline  # For better input handling
@@ -412,7 +522,8 @@ import readline  # For better input handling
 def main():
     agent = create_xdb_agent_from_env(verbose=True)
     print("🤖 XDB Memory & Reminder Bot started! Type 'exit' to quit.\n")
-    print("Features: Memory storage, Reminder creation, Transcript processing\n")
+    print("Features: Memory storage, Reminder creation, Transcript processing")
+    print("🔐 Encryption: Automatic decryption of encrypted memories\n")
     
     while True:
         try:
@@ -437,7 +548,7 @@ if __name__ == "__main__":
     main()
 ```
 
-### 2. Flask Web API with All Features
+### 2. Flask Web API with Encryption Features
 
 ```python
 from flask import Flask, request, jsonify
@@ -458,6 +569,17 @@ def chat():
     
     try:
         response = manager.chat_with_agent(agent_name, message)
+        return jsonify({"response": response, "success": True})
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
+@app.route("/memories/<user_key>", methods=["GET"])
+def get_memories(user_key):
+    """Get memories for a user (with automatic decryption)"""
+    try:
+        agent = manager.get_agent("default")
+        message = f"List all memories for user '{user_key}'"
+        response = agent.chat(message)
         return jsonify({"response": response, "success": True})
     except Exception as e:
         return jsonify({"error": str(e), "success": False}), 500
@@ -487,98 +609,8 @@ def upload_transcript():
     except Exception as e:
         return jsonify({"error": str(e), "success": False}), 500
 
-@app.route("/agents", methods=["GET"])
-def list_agents():
-    return jsonify({"agents": manager.list_agents()})
-
-@app.route("/reset/<agent_name>", methods=["POST"])
-def reset_agent(agent_name):
-    agent = manager.get_agent(agent_name)
-    if agent:
-        agent.reset_memory()
-        return jsonify({"message": f"Agent {agent_name} memory reset"})
-    return jsonify({"error": "Agent not found"}), 404
-
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
-```
-
-### 3. Async FastAPI Server with Enhanced Features
-
-```python
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
-from pydantic import BaseModel
-from xdb_ai_agent import create_xdb_agent_from_env
-import asyncio
-import tempfile
-import os
-
-app = FastAPI(title="XDB Memory & Reminder API")
-
-# Global agent
-agent = None
-
-class ChatRequest(BaseModel):
-    message: str
-    user_id: str = "default"
-
-class ChatResponse(BaseModel):
-    response: str
-    success: bool
-
-class TranscriptRequest(BaseModel):
-    user_key: str
-    tag: str = "transcript"
-
-@app.on_event("startup")
-async def startup_event():
-    global agent
-    agent = create_xdb_agent_from_env(streaming=False)
-
-@app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
-    try:
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(
-            None, 
-            agent.chat, 
-            f"User {request.user_id}: {request.message}"
-        )
-        return ChatResponse(response=response, success=True)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/upload-transcript")
-async def upload_transcript(
-    file: UploadFile = File(...),
-    user_key: str = Form(...),
-    tag: str = Form("transcript")
-):
-    try:
-        # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp_file:
-            content = await file.read()
-            tmp_file.write(content)
-            tmp_file_path = tmp_file.name
-        
-        # Process with agent
-        loop = asyncio.get_event_loop()
-        message = f"Process transcript file {tmp_file_path} with tag '{tag}' for user '{user_key}'"
-        response = await loop.run_in_executor(None, agent.chat, message)
-        
-        # Clean up temporary file
-        os.unlink(tmp_file_path)
-        
-        return {"response": response, "success": True}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/reset")
-async def reset_memory():
-    agent.reset_memory()
-    return {"message": "Memory reset successfully"}
-
-# Run with: uvicorn main:app --reload
 ```
 
 ## Supported Transcript Formats
@@ -638,51 +670,31 @@ pytest tests/test_agent.py
 pytest -v
 ```
 
-### Writing Tests
+### Testing Encryption Functionality
 
 ```python
 import pytest
-from xdb_ai_agent import XDBConfig, XDBAPIClient
-from xdb_ai_agent.utils.exceptions import XDBValidationError
+from xdb_ai_agent import create_xdb_agent_from_env
+from xdb_ai_agent.utils.rsa_encryption_service import RSAEncryption
+from Crypto.PublicKey import RSA
 
-def test_config_validation():
-    # Valid config
-    config = XDBConfig(
-        base_url="http://localhost:5000",
-        api_key="test-key",
-        private_key_path="/path/to/key.pem"
-    )
-    assert config.validate() == True
-
-def test_invalid_config():
-    # Invalid config - no API key
-    with pytest.raises(XDBValidationError):
-        config = XDBConfig(
-            base_url="http://localhost:5000",
-            api_key="",
-            private_key_path="/path/to/key.pem"
-        )
-        config.validate()
-
-@pytest.fixture
-def mock_client(monkeypatch):
-    """Mock XDB API client for testing"""
-    def mock_list_memories(*args, **kwargs):
-        return {
-            "status": "Success",
-            "data": {"memories": []},
-            "message": "Success"
-        }
+def test_encrypted_memory_retrieval():
+    """Test that encrypted memories are properly decrypted"""
+    agent = create_xdb_agent_from_env()
     
-    def mock_list_reminders(*args, **kwargs):
-        return {
-            "status": "Success", 
-            "data": {"reminders": []},
-            "message": "Success"
-        }
+    # This would test with a mock encrypted memory
+    response = agent.chat("List all memories for user 'test_encrypted_user'")
     
-    monkeypatch.setattr("xdb_ai_agent.core.client.XDBAPIClient.list_memories", mock_list_memories)
-    monkeypatch.setattr("xdb_ai_agent.core.client.XDBAPIClient.list_reminders", mock_list_reminders)
+    # Verify that response contains decrypted content
+    assert "Encrypted: True" in response or "Encrypted: False" in response
+
+def test_rsa_decryption():
+    """Test RSA decryption functionality"""
+    rsa_service = RSAEncryption()
+    
+    # Test with a mock private key and encrypted data
+    # This would require setting up test data
+    pass
 ```
 
 ## Troubleshooting
@@ -710,35 +722,29 @@ print("API Key:", os.getenv("XDB_API_KEY"))
 print("Private Key Path:", os.getenv("XDB_PRIVATE_KEY_PATH"))
 ```
 
-#### 3. LangChain Version Conflicts
+#### 3. Encryption/Decryption Issues
+
+```python
+# Error: Unable to decrypt memories
+# Check RSA private key configuration
+from xdb_ai_agent.tools.factory import XDBToolFactory
+
+# Verify private key is properly loaded
+# Check that private_key variable in factory.py contains valid RSA key
+```
+
+#### 4. LangChain Version Conflicts
 
 ```bash
 # Upgrade to compatible versions
 pip install --upgrade langchain langchain-openai
 ```
 
-#### 4. OpenAI API Issues
+#### 5. Crypto Library Issues
 
-```python
-# Test OpenAI connection
-import openai
-openai.api_key = "your-key"
-# Try a simple completion
-```
-
-#### 5. Transcript Processing Issues
-
-```python
-# Check file format and permissions
-import os
-transcript_path = "/path/to/transcript.json"
-print(f"File exists: {os.path.exists(transcript_path)}")
-print(f"File readable: {os.access(transcript_path, os.R_OK)}")
-
-# Test file format detection
-from xdb_ai_agent.utils.file_types import file_type_service
-print(f"Is JSON: {file_type_service.is_json_file(transcript_path)}")
-print(f"Zoom format: {file_type_service.detect_zoom_transcript_format(transcript_path)}")
+```bash
+# Install required cryptography libraries
+pip install pycryptodome cryptography
 ```
 
 ### Debug Mode
@@ -753,226 +759,65 @@ logging.basicConfig(level=logging.DEBUG)
 # Create agent with verbose output
 agent = create_xdb_agent_from_env(verbose=True)
 
-# Test basic functionality
+# Test encryption/decryption
 try:
-    response = agent.chat("Hello, can you help me?")
+    response = agent.chat("List memories for user 'test'")
     print("Success:", response)
 except Exception as e:
     print("Error:", e)
 ```
 
-### Environment Variables Checklist
+### Encryption Debug Checklist
 
-```bash
-# Required variables
-echo "XDB_BASE_URL: $XDB_BASE_URL"
-echo "XDB_API_KEY: $XDB_API_KEY"
-echo "OPENAI_API_KEY: $OPENAI_API_KEY"
+```python
+# Check RSA key configuration
+from Crypto.PublicKey import RSA
 
-# One of these is required
-echo "XDB_PRIVATE_KEY_PATH: $XDB_PRIVATE_KEY_PATH"
-echo "XDB_PRIVATE_KEY_CONTENT: $XDB_PRIVATE_KEY_CONTENT"
+# Test private key loading
+try:
+    with open('/path/to/rsa_private_key.pem', 'r') as f:
+        private_key_content = f.read()
+    private_key = RSA.import_key(private_key_content)
+    print("RSA private key loaded successfully")
+    print(f"Key size: {private_key.size_in_bits()} bits")
+except Exception as e:
+    print(f"RSA key error: {e}")
 ```
 
 ## Additional Resources
 
-### Command Line Interface
-
-The library includes a CLI tool for quick interactions:
-
-```bash
-# Interactive mode
-xdb-cli --interactive
-
-# Interactive mode with custom tools
-xdb-cli --interactive_custom
-
-# Single command
-xdb-cli --message "List memories for user john_doe"
-
-# Show version
-xdb-cli --version
-```
-
-### Memory Data Structure
+### Memory Data Structure with Encryption
 
 Memories returned from XDB have this structure:
 
 ```python
 {
-    "memory": "Content of the memory",
+    "memory": "Content of the memory (encrypted or plain)",
     "date": "2024-01-15T10:30:00Z",
     "transactionNumber": "txn_123456",
-    "tokens": ["tag1", "tag2", "keyword"],
+    "tokens": ["tag1", "tag2", "keyword"],  # May be encrypted
     "language": "en",
     "tag": "category",
-    "sessionId": "session_2024011510"
+    "sessionId": "session_2024011510",
+    "isEncrypted": True  # Indicates if memory is encrypted
 }
 ```
 
-### Reminder Data Structure
+### Encryption Service Integration
 
-Reminders returned from XDB have this structure:
+The XDB AI Agent includes built-in RSA decryption:
 
-```python
-{
-    "reminder": "Content of the reminder",
-    "eventDate": "2024-01-20T15:00:00Z",
-    "event": "Meeting with client",
-    "tag": "work",
-    "sessionId": "session_2024011510"
-}
-```
+1. **RSAEncryption Service** - Handles RSA-OAEP decryption
+2. **Automatic Detection** - Detects encrypted memories via `isEncrypted` flag
+3. **Transparent Decryption** - Decrypts content and tokens automatically
+4. **Error Handling** - Gracefully handles decryption failures
 
 ### Available Tools Summary
 
 The XDB AI Agent includes these built-in tools:
 
-1. **list_memories** - List and search user memories with optional filtering
+1. **list_memories** - List and search user memories with automatic decryption
 2. **create_memory** - Create new memories with content, tags, and session grouping
 3. **list_reminders** - List and search user reminders with optional filtering  
 4. **create_reminder** - Create new reminders with time/date context
 5. **process_transcript_text** - Process transcript files in multiple formats
-
-### Custom Tool Development
-
-```python
-from langchain.tools import Tool
-from xdb_ai_agent import create_xdb_agent_from_env
-
-def search_web(query: str) -> str:
-    """Custom web search tool"""
-    # Implement web search logic
-    return f"Search results for: {query}"
-
-# Create custom tool
-web_search_tool = Tool(
-    name="web_search",
-    description="Search the web for information",
-    func=search_web
-)
-
-# Add to agent
-agent = create_xdb_agent_from_env()
-agent.add_custom_tool(web_search_tool)
-
-# Now the agent can use web search
-response = agent.chat("Search for the latest news about AI")
-```
-
-### Integration with Other Frameworks
-
-#### Streamlit Integration
-
-```python
-import streamlit as st
-from xdb_ai_agent import create_xdb_agent_from_env
-
-@st.cache_resource
-def get_agent():
-    return create_xdb_agent_from_env(streaming=False)
-
-st.title("XDB Memory & Reminder Assistant")
-
-# File upload for transcripts
-uploaded_file = st.file_uploader("Upload Transcript", type=['json', 'txt', 'vtt'])
-if uploaded_file:
-    user_key = st.text_input("User Key")
-    tag = st.text_input("Tag", value="transcript")
-    
-    if st.button("Process Transcript"):
-        # Save and process file
-        with open(f"/tmp/{uploaded_file.name}", "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        
-        agent = get_agent()
-        message = f"Process transcript file /tmp/{uploaded_file.name} with tag '{tag}' for user '{user_key}'"
-        response = agent.chat(message)
-        st.success(response)
-
-# Initialize session state
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Display chat history
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
-# Chat input
-if prompt := st.chat_input("What would you like to know about your memories or reminders?"):
-    # Add user message
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    
-    # Get agent response
-    agent = get_agent()
-    with st.chat_message("assistant"):
-        response = agent.chat(prompt)
-        st.markdown(response)
-    
-    # Add assistant message
-    st.session_state.messages.append({"role": "assistant", "content": response})
-```
-
-#### Gradio Integration
-
-```python
-import gradio as gr
-from xdb_ai_agent import create_xdb_agent_from_env
-
-# Initialize agent
-agent = create_xdb_agent_from_env(streaming=False)
-
-def chat_with_agent(message, history):
-    """Chat function for Gradio interface"""
-    try:
-        response = agent.chat(message)
-        return response
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-def process_transcript_file(file, user_key, tag):
-    """Process uploaded transcript file"""
-    try:
-        message = f"Process transcript file {file.name} with tag '{tag}' for user '{user_key}'"
-        response = agent.chat(message)
-        return response
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-# Create Gradio interface
-with gr.Blocks() as demo:
-    gr.Markdown("# XDB Memory & Reminder Assistant")
-    
-    with gr.Tab("Chat"):
-        chatbot = gr.ChatInterface(
-            fn=chat_with_agent,
-            title="Chat with XDB Assistant",
-            examples=[
-                "List all memories for user alice",
-                "Create a memory about learning Python for user bob",
-                "Remind user sarah to submit report by Friday",
-                "List all reminders for user john"
-            ]
-        )
-    
-    with gr.Tab("Upload Transcript"):
-        with gr.Row():
-            file_input = gr.File(label="Transcript File")
-            user_key_input = gr.Textbox(label="User Key")
-            tag_input = gr.Textbox(label="Tag", value="transcript")
-        
-        process_btn = gr.Button("Process Transcript")
-        output = gr.Textbox(label="Result")
-        
-        process_btn.click(
-            process_transcript_file,
-            inputs=[file_input, user_key_input, tag_input],
-            outputs=output
-        )
-
-if __name__ == "__main__":
-    demo.launch()
-```
